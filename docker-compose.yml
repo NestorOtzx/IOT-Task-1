@@ -61,7 +61,8 @@ services:
     command: tail -f /dev/null
 
   worker:
-    build: .
+    build:
+      context: .
     container_name: python_worker
     volumes:
       - .:/app
@@ -71,6 +72,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      PYTHONUNBUFFERED: 1
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: user
       RABBITMQ_PASSWORD: password
@@ -78,4 +80,4 @@ services:
       DB_USER: user
       DB_PASSWORD: password
       DB_NAME: orders_db
-    command: tail -f /dev/null
+    command: python consumer.py
