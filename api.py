@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from pydantic import BaseModel
 import pika
 import json
 import os
+import uuid
 
 app = FastAPI()
 
@@ -10,7 +11,12 @@ class Order(BaseModel):
     customer_name: str
     order_date: str
 
-def publish_to_rabbitmq(message: dict):
+class Task(BaseModel):
+    task_id: str
+    payload: Order
+
+def publish_to_rabbitmq(task: dict):
+
     credentials = pika.PlainCredentials(
         os.getenv("RABBITMQ_USER"),
         os.getenv("RABBITMQ_PASSWORD")
@@ -26,27 +32,35 @@ def publish_to_rabbitmq(message: dict):
     channel = connection.channel()
 
     channel.exchange_declare(
-        exchange='logs',
+        exchange='tasks',
         exchange_type='fanout'
     )
 
     channel.basic_publish(
-        exchange='logs',
+        exchange='tasks',
         routing_key='',
-        body=json.dumps(message)
+        body=json.dumps(task)
     )
 
     connection.close()
 
-@app.post("/orders")
+@app.post("/orders", status_code=status.HTTP_202_ACCEPTED)
 def receive_order(order: Order):
 
-    order_dict = order.dict()
+    task_id = str(uuid.uuid4())
 
-    print(f"[✔] Order received by API: {order_dict}")
+    task = Task(
+        task_id=task_id,
+        payload=order
+    )
 
-    publish_to_rabbitmq(order_dict)
+    task_dict = task.dict()
+
+    print(f"[✔] Order received, Task created: {task_dict}")
+
+    publish_to_rabbitmq(task_dict)
 
     return {
-        "status": "Order received and published to RabbitMQ"
+        "task_id": task_id,
+        "status": "accepted"
     }

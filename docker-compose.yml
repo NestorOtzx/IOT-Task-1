@@ -78,4 +78,4 @@ services:
       DB_USER: user
       DB_PASSWORD: password
       DB_NAME: orders_db
-    command: python worker.py
+    command: tail -f /dev/null
